@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+pydantic-settings
+sqlmodel
+psycopg2-binary
+websockets
+python-multipart
+alembic
