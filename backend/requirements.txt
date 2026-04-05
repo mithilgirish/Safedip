@@ -8,3 +8,9 @@ psycopg2-binary
 websockets
 python-multipart
 alembic
+torch
+numpy
+pandas
+scikit-learn
+joblib
+matplotlib

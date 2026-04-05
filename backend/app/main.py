@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import ingest, pools, readings, alerts
+from .routers import ingest, pools, readings, alerts, recommend
 from .websocket import router as ws_router
 from .database import engine, Base
 
@@ -23,6 +23,7 @@ app.include_router(ingest.router,   prefix="/api/v1", tags=["Data Ingestion"])
 app.include_router(pools.router,    prefix="/api/v1", tags=["Pool Management"])
 app.include_router(readings.router, prefix="/api/v1", tags=["Readings"])
 app.include_router(alerts.router,   prefix="/api/v1", tags=["Alerts"])
+app.include_router(recommend.router, prefix="/api/v1", tags=["ML Recommendations"])
 app.include_router(ws_router, tags=["WebSockets"])
 
 @app.get("/")

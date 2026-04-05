@@ -5,6 +5,7 @@ from ..schemas import IngestPayload
 from ..safety_engine import evaluate_safety
 from ..models import Reading, Alert, Pool
 from ..websocket import broadcast_to_pool
+from ..ml.predict import get_recommendation
 
 router = APIRouter()
 
@@ -34,6 +35,32 @@ async def ingest_reading(payload: IngestPayload, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(reading)
 
+    # --- ML recommendation (only once we have enough data) ---
+    all_recent = (
+        db.query(Reading)
+        .filter(Reading.pool_id == payload.pool_id)
+        .order_by(Reading.created_at.desc())
+        .limit(30)
+        .all()
+    )
+
+    recommendation = {"action": "nominal", "urgency": "none",
+                      "reason": "Collecting data — need 30 readings to activate ML."}
+
+    if len(all_recent) >= 30:
+        try:
+            recommendation = get_recommendation(
+                all_recent,
+                {
+                    "tds_current":              payload.tds,
+                    "tds_sustained_hours":      0,
+                    "interventions_last_7days": 0,
+                    "days_since_water_change":  0,
+                }
+            )
+        except Exception:
+            pass  # never break ingestion because of ML failure
+
     # Step 4: Broadcast via WebSocket
     await broadcast_to_pool(payload.pool_id, {
         "type": "new_reading",
@@ -49,7 +76,8 @@ async def ingest_reading(payload: IngestPayload, db: Session = Depends(get_db)):
             "safety_status": reading.safety_status,
             "created_at": reading.created_at.isoformat() if reading.created_at else None
         },
-        "alerts": triggered_alerts
+        "alerts": triggered_alerts,
+        "recommendation": recommendation
     })
 
     return {"status": "ok", "reading_id": reading.id, "safety_status": safety_status}
