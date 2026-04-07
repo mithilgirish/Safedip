@@ -7,6 +7,7 @@ import { MetricsGrid } from '@/components/MetricsGrid'
 import { AlertsFeed } from '@/components/AlertsFeed'
 import { MLForecastCard } from '@/components/MLForecastCard'
 import { HistoricalChart } from '@/components/HistoricalChart'
+import { SkinSafetyCard } from '@/components/SkinSafetyCard'
 import { Waves, Settings } from 'lucide-react'
 import Link from 'next/link'
 
@@ -64,12 +65,15 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right Column: AI Forecast & Alerts */}
-          <div className="space-y-6 flex flex-col h-full">
-            <div className="flex-1">
+          {/* Right Column: Skin Safety, AI Forecast & Alerts */}
+          <div className="space-y-6 flex flex-col">
+            <div className="min-h-[280px]">
+              <SkinSafetyCard latestReading={latestReading} />
+            </div>
+            <div>
               <MLForecastCard recommendation={recommendation} />
             </div>
-            <div className="flex-1 max-h-[400px]">
+            <div className="max-h-[360px]">
               <AlertsFeed alerts={latestAlerts} />
             </div>
           </div>
