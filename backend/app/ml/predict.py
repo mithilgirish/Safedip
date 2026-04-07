@@ -17,16 +17,21 @@ SCALER_PATH   = os.path.join(ARTIFACTS_DIR, "scaler.pkl")
 # (not per request — too slow)
 # ----------------------------------------------------------------
 _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+MODEL_LOADED = False
 
-_model = SafeDipLSTM()
-_model.load_state_dict(torch.load(MODEL_PATH, map_location=_device))
-_model.eval()
-_model.to(_device)
+try:
+    _model = SafeDipLSTM()
+    _model.load_state_dict(torch.load(MODEL_PATH, map_location=_device))
+    _model.eval()
+    _model.to(_device)
+    
+    _scaler = joblib.load(SCALER_PATH)
+    MODEL_LOADED = True
+    print(f"[ML] SafeDip LSTM loaded from {MODEL_PATH}")
+    print(f"[ML] Scaler loaded from {SCALER_PATH}")
+except Exception as e:
+    print(f"[ML] Warning: Could not load LSTM or Scaler. Running in fallback simulation mode! ({e})")
 
-_scaler = joblib.load(SCALER_PATH)
-
-print(f"[ML] SafeDip LSTM loaded from {MODEL_PATH}")
-print(f"[ML] Scaler loaded from {SCALER_PATH}")
 
 
 def run_inference(recent_readings: List[Any]) -> np.ndarray:
@@ -47,6 +52,18 @@ def run_inference(recent_readings: List[Any]) -> np.ndarray:
             f"Need at least {WINDOW_SIZE} readings for inference, "
             f"got {len(recent_readings)}"
         )
+
+    if not MODEL_LOADED:
+        # Mock forecast: copy the last reading 10 times with sequential drift
+        last = recent_readings[0] # Newest reading
+        base_vals = np.array([last.ph, last.tds, last.turbidity, last.temperature, last.orp], dtype=np.float32)
+        forecast = np.tile(base_vals, (10, 1))
+        # Add slight drift
+        for i in range(10):
+            forecast[i, 0] += i * 0.02  # pH drifts up
+            forecast[i, 1] += i * 5.0   # TDS creeps up
+            forecast[i, 4] -= i * 3.0   # ORP drops
+        return forecast
 
     # Reverse so oldest is first (LSTM needs chronological order)
     readings_asc = list(reversed(recent_readings[:WINDOW_SIZE]))

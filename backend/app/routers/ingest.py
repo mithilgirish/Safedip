@@ -11,12 +11,17 @@ router = APIRouter()
 
 @router.post("/ingest", status_code=201)
 async def ingest_reading(payload: IngestPayload, db: Session = Depends(get_db)):
-    # Verify pool exists
+    # Verify pool exists, auto-create if missing for seamless hardware integration
     pool = db.query(Pool).filter(Pool.pool_id == payload.pool_id).first()
     if not pool:
-        # For base-laying version, let's auto-create pool if it doesn't exist?
-        # Or return 404. Let's return 404 but provide a way to seed pools later.
-        raise HTTPException(status_code=404, detail=f"Pool {payload.pool_id} not found")
+        pool = Pool(
+            pool_id=payload.pool_id, 
+            name=f"Auto-registered: {payload.pool_id}", 
+            device_id=payload.device_id
+        )
+        db.add(pool)
+        db.commit()
+        db.refresh(pool)
 
     # Step 1: Run the safety threshold engine
     safety_status, alert_messages = evaluate_safety(payload)

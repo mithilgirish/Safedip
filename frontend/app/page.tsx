@@ -2,54 +2,76 @@
 
 import { useState } from 'react'
 import { usePoolWebSocket } from '@/hooks/usePoolWebSocket'
+import { SafetyBanner } from '@/components/SafetyBanner'
+import { MetricsGrid } from '@/components/MetricsGrid'
+import { AlertsFeed } from '@/components/AlertsFeed'
+import { MLForecastCard } from '@/components/MLForecastCard'
+import { HistoricalChart } from '@/components/HistoricalChart'
+import { Waves, Settings } from 'lucide-react'
+import Link from 'next/link'
 
 export default function Home() {
   const [selectedPoolId, setSelectedPoolId] = useState<string>('pool_vit_01')
-  const { latestReading, latestAlerts } = usePoolWebSocket(selectedPoolId)
+  const { latestReading, latestAlerts, recommendation } = usePoolWebSocket(selectedPoolId)
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          SafeDip Dashboard &nbsp;
-          <code className="font-bold">{selectedPoolId}</code>
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-6xl mt-12">
-        <div className="p-6 bg-slate-800 rounded-xl border border-slate-700">
-          <h2 className="text-xl font-bold mb-4">Latest Reading</h2>
-          {latestReading ? (
-            <div className="space-y-2">
-              <p>Status: <span className={
-                latestReading.safety_status === 'safe' ? 'text-emerald-400' :
-                latestReading.safety_status === 'caution' ? 'text-amber-400' : 'text-red-400'
-              }>{latestReading.safety_status.toUpperCase()}</span></p>
-              <p>pH: {latestReading.ph}</p>
-              <p>TDS: {latestReading.tds} ppm</p>
-              <p>Temp: {latestReading.temperature}°C</p>
-              <p>ORP: {latestReading.orp} mV</p>
-              <p>Turbidity: {latestReading.turbidity} NTU</p>
+    <main className="min-h-screen bg-[#030712] text-slate-200">
+      {/* Top Navbar */}
+      <nav className="h-16 border-b border-white/5 bg-black/20 backdrop-blur-3xl sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-br from-indigo-500 to-cyan-500 rounded-lg shadow-lg">
+              <Waves className="w-5 h-5 text-white" />
             </div>
-          ) : (
-            <p className="text-slate-400 italic">Waiting for data...</p>
-          )}
+            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 font-outfit">
+              SafeDip
+            </h1>
+          </div>
+          <div className="flex items-center gap-4">
+            <select
+              value={selectedPoolId}
+              onChange={(e) => setSelectedPoolId(e.target.value)}
+              className="bg-zinc-900 border border-white/10 text-sm rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
+            >
+              <option value="pool_vit_01">Main Campus Pool (pool_vit_01)</option>
+              {/* Additional pools would go here */}
+            </select>
+            <Link href="/preferences" className="p-2 text-slate-400 hover:text-white transition-colors bg-white/5 rounded-lg border border-white/5 hover:border-white/10">
+              <Settings className="w-5 h-5" />
+            </Link>
+          </div>
         </div>
+      </nav>
 
-        <div className="p-6 bg-slate-800 rounded-xl border border-slate-700 md:col-span-2">
-          <h2 className="text-xl font-bold mb-4">Active Alerts</h2>
-          <div className="space-y-3 max-h-60 overflow-y-auto">
-            {latestAlerts.length > 0 ? (
-              latestAlerts.map((alert, idx) => (
-                <div key={idx} className={`p-3 rounded border ${
-                  alert.severity === 'unsafe' ? 'bg-red-900/30 border-red-800 text-red-200' : 'bg-amber-900/30 border-amber-800 text-amber-200'
-                }`}>
-                  {alert.message}
-                </div>
-              ))
-            ) : (
-              <p className="text-slate-400 italic">No active alerts.</p>
-            )}
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+        {/* Safety Banner */}
+        <section className="animate-in fade-in slide-in-from-top-4 duration-700">
+          <SafetyBanner status={latestReading?.safety_status} />
+        </section>
+
+        {/* Metrics Grid */}
+        <section className="animate-in fade-in slide-in-from-top-8 duration-700 delay-150">
+           <MetricsGrid reading={latestReading} />
+        </section>
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
+          
+          {/* Left Column: Historical Chart */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="h-[450px]">
+              <HistoricalChart latestReading={latestReading} poolId={selectedPoolId} />
+            </div>
+          </div>
+
+          {/* Right Column: AI Forecast & Alerts */}
+          <div className="space-y-6 flex flex-col h-full">
+            <div className="flex-1">
+              <MLForecastCard recommendation={recommendation} />
+            </div>
+            <div className="flex-1 max-h-[400px]">
+              <AlertsFeed alerts={latestAlerts} />
+            </div>
           </div>
         </div>
       </div>

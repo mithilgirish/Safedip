@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Float, Boolean, Text, BigInteger, DateTime, ForeignKey
+from sqlalchemy import Column, String, Float, Boolean, Text, Integer, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from .database import Base
@@ -13,7 +13,7 @@ class Pool(Base):
 
 class Reading(Base):
     __tablename__ = "readings"
-    id               = Column(BigInteger, primary_key=True, autoincrement=True)
+    id               = Column(Integer, primary_key=True, index=True)
     device_id        = Column(String, nullable=False)
     pool_id          = Column(String, ForeignKey("pools.pool_id"), nullable=False, index=True)
     temperature      = Column(Float, nullable=False)
@@ -26,7 +26,7 @@ class Reading(Base):
 
 class Alert(Base):
     __tablename__ = "alerts"
-    id               = Column(BigInteger, primary_key=True, autoincrement=True)
+    id               = Column(Integer, primary_key=True, index=True)
     pool_id          = Column(String, ForeignKey("pools.pool_id"), nullable=False, index=True)
     message          = Column(Text, nullable=False)
     severity         = Column(String, nullable=False)  # 'caution', 'unsafe'
