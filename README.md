@@ -4,101 +4,217 @@
 
 # SafeDip: AI-Driven IoT Swimming Pool Safety Monitor
 
-[![Next.js](https://img.shields.io/badge/Next.js-black)](https://nextjs.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-blue)](https://fastapi.tiangolo.com/)
-[![ESP32](https://img.shields.io/badge/ESP32-orange)](https://www.espressif.com/)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110-009688)](https://fastapi.tiangolo.com/)
+[![ESP32](https://img.shields.io/badge/ESP32-Arduino-E7352C)](https://www.espressif.com/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-LSTM-EE4C2C)](https://pytorch.org/)
+[![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 
-**SafeDip** is a commercial-grade, end-to-end IoT platform designed to replace manual swimming pool water testing with a continuous, real-time telemetry pipeline. It combines **Edge Computing (ESP32)**, a **FastAPI backend**, and a **Next.js admin dashboard** to ensure 24/7 swimmer safety and regulatory compliance.
-
----
-
-## 🌟 Features
-- **Real-Time Telemetry**: Sub-10s latency for pH, TDS, Turbidity, ORP, and Temperature monitoring.
-- **Safety Engine**: Threshold-based logic (WHO-aligned) auto-categorizes pool status as `SAFE`, `CAUTION`, or `UNSAFE`.
-- **WebSocket Broadcasting**: Instant notifications and dashboard updates via real-time data streams.
-- **Admin Dashboard**: Comprehensive visualization of historical trends and active alert feeds.
-- **Wearable PWA**: A minimalist interface for smartwatches with vibration alerts for emergency conditions.
+**SafeDip** is a commercial-grade, end-to-end IoT water safety platform. It continuously monitors water chemistry via an ESP32 sensor node and delivers real-time, **personalised safety analysis** to swimmers based on their individual skin biology — while providing pool operators with AI-powered predictive maintenance recommendations.
 
 ---
 
-## 📱 User Ecosystem
-SafeDip provides a dedicated experience for swimmers to ensure their personal safety:
-- **Mobile User App (PWA)**: Scan a **QR Code** at any pool to instantly view its water quality.
-- **Personalized Safety**: Configure "Sensitivity Profiles" (e.g., Sensitive Skin, Eye Sensitivity) to receive tailored warnings based on real-time chemistry.
-- **Smartwatch Alerts**: Stay informed while swimming with haptic feedback and high-contrast status updates on your wrist.
+## 🌟 System Features
+
+### 🔬 Real-Time Water Monitoring
+- **5-parameter sensing**: pH, TDS (ppm), Turbidity (NTU), ORP (mV), Temperature (°C)
+- **15-sample hardware averaging** per reading to eliminate sensor noise
+- **Sub-10 second latency** from sensor to dashboard via WebSocket
+
+### 🧠 AI / ML Layer
+- **LSTM Neural Network**: Trained on synthetic time-series pool data to forecast water parameter drift 5 minutes ahead
+- **Predictive Maintenance Engine**: Translates forecasts into operator-grade action recommendations (`full_replace`, `partial_replace`, `chemical`, `warning`, `nominal`)
+- **Skin Safety AI**: Personalised rule-based engine that scores water safety (0–100) against dermatologically-informed thresholds specific to the user's skin type, conditions, and sensitivities
+
+### 👤 Personalised Swimmer Safety
+- Users select their **skin type** (Normal / Dry / Oily / Combination / Sensitive)
+- Add **skin conditions** (Eczema, Psoriasis, Rosacea, Acne-prone)
+- Toggle **Eye** and **Respiratory** sensitivities
+- The dashboard card updates live with every reading showing a personal **SAFE / USE CAUTION / NOT SAFE FOR YOU** verdict
+
+### 📡 Real-Time Infrastructure
+- **WebSocket broadcasting**: Every ingested reading is pushed instantly to all connected dashboards
+- **Auto pool registration**: New ESP32 devices are auto-registered on first POST — no manual setup
+- **SQLite (dev) / PostgreSQL (prod)**: Seamless switch via `DATABASE_URL` environment variable
 
 ---
 
 ## 🏗️ System Architecture
-The SafeDip platform utilizes a 4-tier architecture to ensure high-performance data ingestion and real-time visualization.
 
-```mermaid
-graph TD
-    A[ESP32 Edge Node] -->|HTTP POST JSON| B[FastAPI Backend]
-    B -->|SQL Alchemy| C[PostgreSQL Database]
-    B -->|WebSockets| D[Next.js Dashboard]
-    B -->|Real-time Updates| E[Wearable PWA]
-    D -->|Control Commands| B
+```
+┌─────────────────────┐        HTTP POST (JSON)       ┌──────────────────────────┐
+│   ESP32 Edge Node   │ ─────────────────────────────▶ │   FastAPI Backend        │
+│                     │                                │                          │
+│  pH / TDS / Turb /  │                                │  ┌──────────────────┐   │
+│  ORP / Temp sensors │                                │  │ Safety Engine    │   │
+│  15-sample average  │                                │  │ (WHO thresholds) │   │
+│  Temp compensation  │                                │  └──────────────────┘   │
+└─────────────────────┘                                │  ┌──────────────────┐   │
+                                                       │  │ LSTM Forecaster  │   │
+         ┌─────────────────────────────────────────────│  │ + Decision Layer │   │
+         │           WebSocket broadcast               │  └──────────────────┘   │
+         ▼                                             │  ┌──────────────────┐   │
+┌─────────────────────┐                               │  │ Skin Safety AI   │   │
+│  Next.js Dashboard  │                               │  │ (POST /skin/     │   │
+│                     │                               │  │  assess)         │   │
+│  • Metrics Grid     │  POST /api/v1/skin/assess ──▶ │  └──────────────────┘   │
+│  • Real-Time Chart  │ ◀── personalised score ──────  │                          │
+│  • Skin Safety Card │                                │  SQLite / PostgreSQL     │
+│  • ML Forecast Card │                                └──────────────────────────┘
+│  • Alerts Feed      │
+└─────────────────────┘
 ```
 
-### The 4 Tiers:
-1. **Tier 1 (Hardware)**: ESP32 node with 15-sample noise-reduction averaging and temperature compensation.
-2. **Tier 2 (Backend)**: FastAPI running the **Safety Threshold Engine** & WebSocket manager.
-3. **Tier 3 (Database)**: PostgreSQL (Supabase/Local) for high-velocity time-series telemetry.
-4. **Tier 4 (Presentation)**: Next.js + Tailwind CSS with Lucide icons and Recharts.
+### The 4 Tiers
+| Tier | Technology | Role |
+|---|---|---|
+| **1 — Edge** | ESP32 + Arduino C++ | Sensor reading, noise reduction, temperature compensation, HTTP POST |
+| **2 — Backend** | FastAPI (Python) | Ingestion, safety evaluation, LSTM inference, WebSocket broadcast, Skin AI |
+| **3 — Database** | SQLite (dev) / PostgreSQL (prod) via SQLAlchemy | Telemetry storage, alert log, pool registry |
+| **4 — Frontend** | Next.js 14, Tailwind CSS, Recharts | Live dashboard, skin profile wizard, ML forecast display |
 
 ---
 
-## 🛠️ Hardware Stack
-The SafeDip Edge Node is built on the ESP32 platform with the following sensors:
-- **pH Probe**: Analog sensing with linear calibration.
-- **TDS Sensor**: Total Dissolved Solids monitoring (ppm).
-- **ORP Sensor**: Oxidation-Reduction Potential (mV) for disinfection effectiveness.
-- **Turbidity Sensor**: Water clarity monitoring (NTU).
-- **DS18B20**: Waterproof temperature probe with 0.5°C accuracy.
+## 🧬 Skin Safety AI
 
+The Skin AI module (`backend/app/ml/skin_ai.py`) is a dermatologically-informed rule engine — no training required.
+
+| Skin Type | pH Safe Range | Notes |
+|---|---|---|
+| Normal | 7.0 – 7.8 | Baseline WHO-aligned range |
+| Dry | 7.2 – 7.5 | Tighter — high pH strips skin lipids |
+| Oily | 6.8 – 7.6 | Slightly wider tolerance |
+| Combination | 7.0 – 7.6 | Moderate range |
+| Sensitive | 7.2 – 7.5 | Most restrictive |
+
+Conditions (Eczema, Psoriasis, Rosacea, Acne) apply further overrides. Eye and Respiratory sensitivities adjust ORP (chlorine) and TDS (chloramine) thresholds.
+
+**API**: `POST /api/v1/skin/assess` — stateless, works for both fixed pool readings and portable water scans.
 
 ---
 
 ## 🚀 Quick Start
-For detailed build instructions, please refer to the **[Checkpoint Docs](file:///f:/project/Safedip/docs/checkpoint.md)**.
 
-### 1. Backend Setup
+### Prerequisites
+- Python 3.10+, Node.js 18+, Arduino IDE (for hardware)
+
+### 1. Backend
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate  # venv\Scripts\activate on Windows
+venv\Scripts\activate          # Windows
+# source venv/bin/activate     # Linux/Mac
 pip install -r requirements.txt
 uvicorn app.main:app --reload
+# API live at http://localhost:8000
+# Swagger docs at http://localhost:8000/docs
 ```
 
-### 2. Frontend Setup
+### 2. Frontend
 ```bash
 cd frontend
 npm install
 npm run dev
+# Dashboard at http://localhost:3000
 ```
 
-### 3. Hardware Flash
-- Load `hardware/esp32_firmware/safedip_node.ino` into the Arduino IDE.
-- Update `WIFI_SSID` and `API_ENDPOINT`.
-- Select your ESP32 board and Flash!
+### 3. Simulator (no hardware needed)
+```bash
+# From project root, with backend running:
+python simulate_hardware.py
+# Sends realistic drifting sensor data every 3 seconds
+```
+
+### 4. Real Hardware (ESP32)
+- Open `hardware/safedip_v0.5/safedip_v0.5.ino` in Arduino IDE
+- Update `WIFI_SSID`, `WIFI_PASSWORD`, and `SERVER_URL` to your PC's local IP
+- Flash to ESP32, dip sensors in water
 
 ---
 
 ## 📂 Project Structure
-```text
-safedip/
-├── backend/        # FastAPI Python API (Safety Engine & WebSockets)
-├── frontend/       # Next.js Dashboard & PWA (Real-time Visualization)
-├── hardware/       # ESP32 C++/Arduino Firmware (Sensor Tier)
-└── docs/           # Specifications, BRD, and Project Checkpoints
-```
 
-## 🛠️ Tech Stack
-- **Languages**: Python, TypeScript, C++.
-- **Libraries**: FastAPI, SQLAlchemy, Alembic, React, Tailwind, Recharts, ArduinoJson, DallasTemperature.
+```
+safedip/
+├── backend/
+│   ├── app/
+│   │   ├── main.py              # FastAPI entry point + CORS + router registration
+│   │   ├── models.py            # SQLAlchemy ORM (Pool, Reading, Alert)
+│   │   ├── schemas.py           # Pydantic request/response models
+│   │   ├── safety_engine.py     # WHO-aligned threshold evaluation
+│   │   ├── database.py          # DB engine + session factory
+│   │   ├── websocket.py         # WebSocket connection manager
+│   │   ├── ml/
+│   │   │   ├── skin_ai.py       # 🆕 Skin Safety AI — personalised scoring engine
+│   │   │   ├── predict.py       # LSTM inference pipeline
+│   │   │   ├── decision.py      # Maintenance action decision layer
+│   │   │   ├── model.py         # SafeDipLSTM architecture
+│   │   │   ├── train.py         # Training script
+│   │   │   ├── dataset.py       # Data loading + sliding windows
+│   │   │   ├── generate_data.py # Synthetic training data generator
+│   │   │   └── artifacts/       # Trained model weights + scaler
+│   │   └── routers/
+│   │       ├── ingest.py        # POST /api/v1/ingest
+│   │       ├── pools.py         # Pool CRUD
+│   │       ├── readings.py      # Historical readings
+│   │       ├── alerts.py        # Alert feed
+│   │       ├── recommend.py     # ML maintenance recommendations
+│   │       └── skin.py          # 🆕 POST /api/v1/skin/assess
+│   ├── data/                    # Training CSV data
+│   └── requirements.txt
+│
+├── frontend/
+│   ├── app/
+│   │   ├── page.tsx             # Main dashboard
+│   │   └── preferences/
+│   │       └── page.tsx         # 🆕 3-step skin profile wizard
+│   ├── components/
+│   │   ├── SafetyBanner.tsx     # Global status banner
+│   │   ├── MetricsGrid.tsx      # Live parameter cards
+│   │   ├── HistoricalChart.tsx  # Recharts time-series graph
+│   │   ├── MLForecastCard.tsx   # LSTM recommendation display
+│   │   ├── AlertsFeed.tsx       # Live alert log
+│   │   └── SkinSafetyCard.tsx   # 🆕 Personalised skin safety score card
+│   └── hooks/
+│       └── usePoolWebSocket.ts  # Real-time data hook
+│
+├── hardware/
+│   └── safedip_v0.5/
+│       └── safedip_v0.5.ino    # ESP32 firmware (pH, TDS, Turbidity, Temp)
+│
+├── ml/                          # Standalone ML documentation
+│   └── README.md
+│
+├── simulate_hardware.py         # Software ESP32 simulator for development
+└── README.md
+```
 
 ---
 
-© 2026 SafeDip Project - Built for commercial pool safety and modern facility management.
+## 🔌 API Reference
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/v1/ingest` | Receive sensor reading from ESP32, evaluate safety, broadcast |
+| `GET` | `/api/v1/readings/{pool_id}` | Fetch historical readings |
+| `GET` | `/api/v1/alerts/{pool_id}` | Fetch alert history |
+| `GET` | `/api/v1/pools` | List registered pools |
+| `POST` | `/api/v1/recommend/{pool_id}` | Get LSTM-powered maintenance recommendation |
+| `POST` | `/api/v1/skin/assess` | **🆕** Get personalised skin safety score for any water reading |
+| `WS` | `/ws/pool/{pool_id}` | Subscribe to real-time pool data stream |
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **Backend** | Python, FastAPI, SQLAlchemy, Pydantic, WebSockets |
+| **ML / AI** | PyTorch (LSTM), scikit-learn (scaler), NumPy, pandas |
+| **Frontend** | TypeScript, Next.js 14, Tailwind CSS, Recharts, Lucide |
+| **Hardware** | C++ / Arduino, ArduinoJson, DallasTemperature, OneWire |
+| **Database** | SQLite (development), PostgreSQL (production) |
+
+---
+
+© 2026 SafeDip — Vellore Institute of Technology (VIT), Chennai. Built for commercial pool safety and modern facility management.
